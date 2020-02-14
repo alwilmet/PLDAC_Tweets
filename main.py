@@ -14,13 +14,16 @@ users = data_user_reduced[['screen_name']]
 users_tot = data_user[['screen_name']]
 
 # get followers
-followers = following_list(users[:300])
+followers = following_list(users[:200])
 
 # clean users not in base
 
+followers = read_pkl('users')
 
 
+followers = clean_following(followers,users_tot.screen_name.values)
 
+write_followers_gml(followers,users_tot.screen_name.values)
 
 
 
