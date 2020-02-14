@@ -1,6 +1,6 @@
 
 def write_followers_gml(followers ,users):
-    with open('./following2.gml', 'w') as f:
+    with open('./following3.gml', 'w') as f:
         f.write("Creator \"Following\"\n")
         f.write("graph\n[\n")
         for user in users:

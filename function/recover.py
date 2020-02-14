@@ -35,14 +35,14 @@ def get_dataframe_from_table(table_name, number=None):
 
 
 def read_pkl(filename):
-    file = open('%s.pkl'%filename, 'rb')
+    file = open('./data/%s.pkl'%filename, 'rb')
     data = pickle.load(file)
     file.close()
     return data
 
 
 def dump_pkl(filename, data):
-    file = open('%s.pkl'%filename, 'wb')
+    file = open('./data/%s.pkl'%filename, 'wb')
     pickle.dump(data, file)
     file.close()
     return data

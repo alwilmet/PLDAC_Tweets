@@ -1,6 +1,6 @@
-from graph import *
-from recover import *
-from follow import *
+from function.graph import *
+from function.recover import *
+from function.follow import *
 
 # recover users data
 data_user = get_dataframe_from_table("users_0415_0423",10000)
@@ -21,9 +21,9 @@ followers = following_list(users[:200])
 followers = read_pkl('users')
 
 
-followers = clean_following(followers,users_tot.screen_name.values)
+followers, users_tot_cleaned = clean_following(followers,users_tot.screen_name.values)
 
-write_followers_gml(followers,users_tot.screen_name.values)
+write_followers_gml(followers,users_tot_cleaned)
 
 
 

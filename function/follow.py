@@ -29,6 +29,10 @@ def following_list(users):
 
 def clean_following(users, users_tot):
     """return the following which are in users_tot only"""
+    users_tot_cleaned = np.array([])
     for row in users.itertuples():
         users['following'].at[row.Index] = np.array(np.intersect1d(row.following, users_tot))
-    return users
+        users_tot_cleaned = np.concatenate((users_tot_cleaned,np.array(np.intersect1d(row.following, users_tot))))
+    users_tot_cleaned = np.unique(users_tot_cleaned)
+
+    return users, users_tot_cleaned
