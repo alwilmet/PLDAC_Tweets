@@ -5,7 +5,7 @@ from mysql.connector import Error
 import pickle
 
 
-def get_dataframe_from_table(table_name, number=None):
+def get_dataframe_from_table(table_name, number=None, columns = None):
     df = None
     try:
         connection = mysql.connector.connect(host='localhost',
@@ -13,9 +13,18 @@ def get_dataframe_from_table(table_name, number=None):
                                              user='alexandre',
                                              password='Alexandre1%')
         if number is not None:
-            sql_select_query = "select * from %s limit %d" % (table_name, number)
+            if columns is not None:
+                sql_select_query = "select t.%s from %s t limit %d" % (',t.'.join(columns),table_name, number)
+            else:
+                sql_select_query = "select * from %s limit %d" % (table_name, number)
+
         else:
-            sql_select_query = "select * from %s " % table_name
+            if columns is not None:
+                sql_select_query = "select t.%s from %s t " % (',t.'.join(columns), table_name)
+            else:
+                sql_select_query = "select * from %s " % table_name
+
+
         cursor = connection.cursor()
         cursor.execute(sql_select_query)
         records = cursor.fetchall()
