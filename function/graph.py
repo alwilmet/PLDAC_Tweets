@@ -3,14 +3,11 @@ import matplotlib.pyplot as plt
 
 
 def write_retweets_gml(tweets, users):
+    users = users[~users.politic_affinity.isin(['None'])]
     tweets = tweets[tweets.retweeted_user_id.isin(users.user_id.values)]
-    print(tweets.retweeted_user_id.shape[0])
+    tweets = tweets[tweets.user_id.isin(users.user_id.values)]
     tweets = tweets[~tweets.retweeted_user_id.isin([None])]
-
-    users_unique = np.unique(np.concatenate((tweets.user_id.unique(), tweets.retweeted_user_id.unique())))
-    users = users[users.user_id.isin(users_unique)]
-
-    tweets = tweets[tweets.retweeted_user_id.isin(users.user_id.values)]
+    users
 
     with open('./data/retweets.gml', 'w') as f:
         f.write("Creator \"Retweets\"\n")
@@ -19,7 +16,7 @@ def write_retweets_gml(tweets, users):
             f.write("  node\n  [\n")
             f.write("   id %s\n" % user.user_id)
             # f.write("   category %s\n" %user.category)
-            # f.write("   politic_affinity %s\n" %user.affinity)
+            f.write("   politic_affinity %s\n" %user.politic_affinity)
             f.write("  ]\n")
         for retweet in tweets.itertuples():
             f.write("  edge\n  [\n")
