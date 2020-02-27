@@ -1,8 +1,12 @@
+##### fichier qui regroupe les fonctions sur l'analyse des hashtags
+
 import numpy as np
 from collections import Counter
 import pandas as pd
 
+
 def entropy_hashtags(users):
+    # calcul de l'entropie
     users['hashtag_entropy'] = users.hashtags.apply(lambda x: np.array(x))
     users['hashtag_entropy'] = users.hashtags.apply(
         lambda x: (np.unique(x, return_counts=True)[1]) / (np.unique(x, return_counts=True)[1]).sum())
@@ -12,6 +16,7 @@ def entropy_hashtags(users):
 
 
 def most_frequent(List):
+    # fonction que sélectionne l'élement le plus fréquent d'une liste
     if List is np.nan:
         return None
     occurence_count = Counter(List)
@@ -19,6 +24,7 @@ def most_frequent(List):
 
 
 def politic_affinity(users, entropy_limit=1):
+    # en fonction de la limite de l'entropie, on affecte une affinité politique
     affinity = users[users.hashtag_entropy < 1]
     affinity['politic_affinity'] = affinity.hashtags.apply(most_frequent)
     users['politic_affinity'] = users.user_id.map(

@@ -1,3 +1,5 @@
+##### fichier qui regroupe les fonctions pour analyser les follows
+
 import time
 import twint
 import numpy as np
