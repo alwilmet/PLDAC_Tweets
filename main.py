@@ -1,9 +1,12 @@
 from function.graph import * # fichier qui regroupe les fonctions pour faire les graphes
-from function.recover import * # fichier qui regroupe les fonctions pour récupérer les données
 from function.follow import *  # fichier qui regroupe les fonctions sur les follows
 from function.hashtags import * # fichier qui regoupe les fonctions pour analyser les hashtags
+from function.figure import *
+
 
 # sélectionner les parties de l'analyse que l'on veut effectuer
+from function.recover import get_dataframe_from_table
+
 part_following = False
 part_retweets = True
 part_figure = False
@@ -89,11 +92,23 @@ if part_retweets:
     # on récupere la table des tweets avec les informations sur les retweets
     tweets = get_dataframe_from_table("tweets_0415_0423",
                                     columns=['tweet_id', 'user_id', 'retweeted_status_id', 'retweeted_user_id'])
-    # on écrit le fichier de graphe
-    write_retweets_gml(tweets, users_reduced)
+    #calcul de nombre de fois qu'une personne est retweetée
+    retweeted_count = tweets[['user_id','retweeted_user_id']].groupby('retweeted_user_id').count()
+    users['retweeted_count'] = users.user_id.map(pd.Series(index=retweeted_count.index, data=retweeted_count.user_id.values))
+
+    #calcul du nombre de fois qu'un user retweet
+    retweeter_count = tweets[~tweets.retweeted_user_id.isin([None])][['user_id','retweeted_user_id']].groupby('user_id').count()
+    users['retweeter_count'] = users.user_id.map(pd.Series(index=retweeter_count.index, data=retweeter_count.retweeted_user_id.values))
+
+    users = users.astype(object).replace('None',0) # on remplace les np.nan par des None
+
+    # partitionnement par rapport aux nb tweets, retweeted/retweeter count en utilisant KMeans
+    users2['cluster_id'] = supervised(users2,['nb_tweets','retweeter_count','retweeted_count'])
+
 
 if part_figure:
-
-
     hist_user_tweet(users)
-    #hist_followers_tweet(users)
+    scatterplot(users2,'followers_count','nb_tweets',title='scatterplot',filename='nb_foll_nb_tweets_scatter')
+    scatterplot_cluster(users2,'nb_tweets','retweeted_count',title='scatterplot_cluster',filename='cluster_nb_tweets_retweeted_scatter')
+    # on écrit le fichier de graphe des retweets
+    write_retweets_gml(tweets, users_reduced)
