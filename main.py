@@ -2,10 +2,10 @@ from function.graph import * # fichier qui regroupe les fonctions pour faire les
 from function.follow import *  # fichier qui regroupe les fonctions sur les follows
 from function.hashtags import * # fichier qui regoupe les fonctions pour analyser les hashtags
 from function.figure import *
+from function.recover import get_dataframe_from_table
 
 
 # sélectionner les parties de l'analyse que l'on veut effectuer
-from function.recover import get_dataframe_from_table
 
 part_following = False
 part_retweets = True
@@ -112,3 +112,52 @@ if part_figure:
     scatterplot_cluster(users2,'nb_tweets','retweeted_count',title='scatterplot_cluster',filename='cluster_nb_tweets_retweeted_scatter')
     # on écrit le fichier de graphe des retweets
     write_retweets_gml(tweets, users_reduced)
+    G = nx.read_gml('./data/retweets1.gml',label=None)
+    partition = community.best_partition(G)
+    users_reduced['louvain'] = users_reduced.user_id.map(pd.Series(index = list(partition.keys()),data = list(partition.values())))
+
+users_final = users_reduced[~users_reduced.louvain.isin([np.nan])]
+
+
+
+if part_hashtags2:
+    # recover tweets and hashtags data
+    hashs = get_dataframe_from_table("hashs_0415_0423")
+    hash_tweets = get_dataframe_from_table("tweet_hash_0415_0423")
+    tweets = get_dataframe_from_table("tweets_0415_0423",columns = ['tweet_id','user_id'])
+
+    # add column containing hashtag content in hash_tweets
+    hashs['hash_id'] = hashs['hash_id'].apply(int)
+    hash_tweets['hash'] = hash_tweets.hash_id.map(pd.Series(index=hashs.hash_id.values, data=hashs.hash.values))
+
+    # ajout d'une colonne pour le user qui a écrit le hashtag
+    hash_tweets['user_id'] = hash_tweets.tweet_id.map(pd.Series(index = tweets.tweet_id.values, data = tweets.user_id.values))
+
+    #on sélectionne les hashtags des users qui ont au moins 100 tweets
+    hash_tweets = hash_tweets[hash_tweets.user_id.isin(users_final.user_id.values)]
+    tmp = hash_tweets[['user_id','hash']].groupby('user_id').hash.apply(list)
+
+    #on ajoute une colonne dans la table des users, contenant les hashtags qu'ils ont écrit
+    users_final['hashtag_origin'] = users_reduced.user_id.map(tmp)
+
+    contre_fillon = users_final[users_final.louvain == 0]
+    pour_macron = users_final[users_final.louvain == 1]
+    contre_macron = users_final[users_final.louvain == 4][users_final.politic_affinity== 'macron']
+    pour_fillon = users_final[users_final.louvain == 4][users_final.politic_affinity== 'fillon']
+
+
+
+
+def hist_hashtags(df,filename = None):
+    flatten = lambda l: [item for sublist in l for item in sublist]
+    hashtags = pd.Series(flatten(list(df.hashtag_origin.values)))
+    hist = hashtags.value_counts()[:15].plot(kind='bar')
+    hist.set_xticklabels(hist.get_xticklabels(), rotation=45, horizontalalignment='right')
+    if filename is not None:
+        plt.savefig('./figures/%s.pdf'%filename,bbox_inches='tight')
+
+def moy_hashtag(df,hashtag):
+    bool_hash = df.hashtag_origin.apply(lambda x: hashtag in x)
+    bool_hash = bool_hash[bool_hash == True]
+    res = len(bool_hash)/len(df)
+    return res
