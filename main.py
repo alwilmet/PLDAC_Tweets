@@ -3,15 +3,15 @@ from function.follow import *  # fichier qui regroupe les fonctions sur les foll
 from function.hashtags import * # fichier qui regoupe les fonctions pour analyser les hashtags
 from function.figure import *
 from function.recover import get_dataframe_from_table
-
+import community
+import networkx as nx
 
 # sélectionner les parties de l'analyse que l'on veut effectuer
 
-part_following = False
 part_retweets = True
-part_figure = False
+part_figure = True
 part_hashtags = True
-
+part_hashtags2 = True
 
 # définition à la main du dictionnaire pour rassembler les hashtags sur un hashtag commun
 dict_candidat = {'macron': ['macron', 'EnMarche', 'MacronBercy', 'JeVoteMacron', 'Macron2017'],
@@ -67,49 +67,29 @@ if part_hashtags:
     users_reduced = politic_affinity((users_reduced))
 
 
-
-if part_following:
-    # select part of user for recover followers
-    data_user_reduced = data_user[data_user.followers_count < 500]
-    data_user_reduced = data_user_reduced.reset_index()
-
-    # recover username columns
-    users = data_user_reduced[['screen_name']]
-    users_tot = data_user[['screen_name']]
-
-    # get followers
-    followers = following_list(users[:200])
-
-    # clean users not in base
-
-    followers = read_pkl('users')
-
-    followers, users_tot_cleaned = clean_following(followers, users_tot.screen_name.values)
-
-    write_followers_gml(followers, users_tot_cleaned)
-
 if part_retweets:
     # on récupere la table des tweets avec les informations sur les retweets
     tweets = get_dataframe_from_table("tweets_0415_0423",
                                     columns=['tweet_id', 'user_id', 'retweeted_status_id', 'retweeted_user_id'])
     #calcul de nombre de fois qu'une personne est retweetée
     retweeted_count = tweets[['user_id','retweeted_user_id']].groupby('retweeted_user_id').count()
-    users['retweeted_count'] = users.user_id.map(pd.Series(index=retweeted_count.index, data=retweeted_count.user_id.values))
+    users_reduced['retweeted_count'] = users_reduced.user_id.map(pd.Series(index=retweeted_count.index, data=retweeted_count.user_id.values))
 
     #calcul du nombre de fois qu'un user retweet
     retweeter_count = tweets[~tweets.retweeted_user_id.isin([None])][['user_id','retweeted_user_id']].groupby('user_id').count()
-    users['retweeter_count'] = users.user_id.map(pd.Series(index=retweeter_count.index, data=retweeter_count.retweeted_user_id.values))
+    users_reduced['retweeter_count'] = users_reduced.user_id.map(pd.Series(index=retweeter_count.index, data=retweeter_count.retweeted_user_id.values))
 
-    users = users.astype(object).replace('None',0) # on remplace les np.nan par des None
+    users_reduced = users_reduced.astype(object).replace('None',0) # on remplace les np.nan par des None
+    users_reduced = users_reduced.astype(object).replace(np.nan,0) # on remplace les np.nan par des None
 
     # partitionnement par rapport aux nb tweets, retweeted/retweeter count en utilisant KMeans
-    users2['cluster_id'] = supervised(users2,['nb_tweets','retweeter_count','retweeted_count'])
+    users_reduced['cluster_id'] = supervised(users_reduced,['nb_tweets','retweeter_count','retweeted_count'])
 
 
 if part_figure:
     hist_user_tweet(users)
-    scatterplot(users2,'followers_count','nb_tweets',title='scatterplot',filename='nb_foll_nb_tweets_scatter')
-    scatterplot_cluster(users2,'nb_tweets','retweeted_count',title='scatterplot_cluster',filename='cluster_nb_tweets_retweeted_scatter')
+    scatterplot(users_reduced,'followers_count','nb_tweets',title='scatterplot',filename='nb_foll_nb_tweets_scatter')
+    scatterplot_cluster(users_reduced,'nb_tweets','retweeted_count',title='scatterplot_cluster',filename='cluster_nb_tweets_retweeted_scatter')
     # on écrit le fichier de graphe des retweets
     write_retweets_gml(tweets, users_reduced)
     G = nx.read_gml('./data/retweets1.gml',label=None)
@@ -119,6 +99,22 @@ if part_figure:
 users_final = users_reduced[~users_reduced.louvain.isin([np.nan])]
 
 
+
+def hist_hashtags(df,filename = None):
+    """calcule l'hist des hashtags pour une df"""
+    flatten = lambda l: [item for sublist in l for item in sublist]
+    hashtags = pd.Series(flatten(list(df.hashtag_origin.values)))
+    hist = hashtags.value_counts()[:15].plot(kind='bar')
+    hist.set_xticklabels(hist.get_xticklabels(), rotation=45, horizontalalignment='right')
+    if filename is not None:
+        plt.savefig('./figures/%s.pdf'%filename,bbox_inches='tight')
+
+def moy_hashtag(df,hashtag):
+    """calcule la fréquence d'apparation du hashtags dans les tweets pour chaque user"""
+    bool_hash = df.hashtag_origin.apply(lambda x: hashtag in x)
+    bool_hash = bool_hash[bool_hash == True]
+    res = len(bool_hash)/len(df)
+    return res
 
 if part_hashtags2:
     # recover tweets and hashtags data
@@ -140,6 +136,7 @@ if part_hashtags2:
     #on ajoute une colonne dans la table des users, contenant les hashtags qu'ils ont écrit
     users_final['hashtag_origin'] = users_reduced.user_id.map(tmp)
 
+
     contre_fillon = users_final[users_final.louvain == 0]
     pour_macron = users_final[users_final.louvain == 1]
     contre_macron = users_final[users_final.louvain == 4][users_final.politic_affinity== 'macron']
@@ -148,16 +145,3 @@ if part_hashtags2:
 
 
 
-def hist_hashtags(df,filename = None):
-    flatten = lambda l: [item for sublist in l for item in sublist]
-    hashtags = pd.Series(flatten(list(df.hashtag_origin.values)))
-    hist = hashtags.value_counts()[:15].plot(kind='bar')
-    hist.set_xticklabels(hist.get_xticklabels(), rotation=45, horizontalalignment='right')
-    if filename is not None:
-        plt.savefig('./figures/%s.pdf'%filename,bbox_inches='tight')
-
-def moy_hashtag(df,hashtag):
-    bool_hash = df.hashtag_origin.apply(lambda x: hashtag in x)
-    bool_hash = bool_hash[bool_hash == True]
-    res = len(bool_hash)/len(df)
-    return res
